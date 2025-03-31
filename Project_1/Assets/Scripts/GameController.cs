@@ -1,3 +1,5 @@
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -13,7 +15,9 @@ public class GameController : MonoBehaviour
     private QuestionManager questionManager = new QuestionManager();
     private List<MathQuestion> questions;
     private string currentAnswer = "";
-
+    private DateTime startTime; // 遊戲開始時間
+    private bool isGameOver = false; // 是否遊戲結束
+    private bool isGameStarted = false; // 是否遊戲開始
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -33,19 +37,10 @@ public class GameController : MonoBehaviour
             questionUIController.UpdateQuestion(questions[currentQuestionIndex], questionManager.CurrentStage, currentQuestionIndex, questionManager.MaxQuestions);
             questionUIController.UpdateScore(correctAnswers, questionManager.MaxQuestions);
         }
-    }
 
-    // Update is called once per frame
-    void Update()
-    {
-        if (currentQuestionIndex >= questionManager.MaxQuestions)
-        {
-            Debug.Log("Game Over");
-            // Handle game over logic here
-        }
+        StartCoroutine(StartCountdown());
     }
-
-    public void OnOtherClick(Key key)
+        public void OnOtherClick(Key key)
     {
         if (currentQuestionIndex < questionManager.MaxQuestions)
         {
@@ -91,6 +86,10 @@ public class GameController : MonoBehaviour
                     }
                 }
             }
+            else if(key == Key.R)
+            {
+                RestartGame();
+            }
         }
     }
 
@@ -105,4 +104,60 @@ public class GameController : MonoBehaviour
             }
         }
     }
+    // Game Process
+    private IEnumerator StartCountdown()
+    {
+        int countdown = 3;
+        while (countdown > 0)
+        {
+            if (questionUIController != null)
+            {
+                questionUIController.UpdateTime($"{countdown} s");
+            }
+            yield return new WaitForSeconds(1);
+            countdown--;
+        }
+        isGameOver = false;
+        isGameStarted = true;
+        startTime = DateTime.Now;
+    }
+    // Update is called once per frame
+    void FixedUpdate()
+    {
+        if (isGameStarted && !isGameOver)
+        {
+            TimeSpan elapsedTime = DateTime.Now - startTime;
+            if (questionUIController != null)
+            {
+                questionUIController.UpdateTime($"{elapsedTime.ToString(@"mm\:ss")}");
+            }
+            if (currentQuestionIndex >= questionManager.MaxQuestions)
+            {
+                Debug.Log("Game Over");
+                isGameOver = true;
+                isGameStarted = false;
+                // Handle game over logic here
+            }
+        }
+    }
+    /// 重新開始
+    public void RestartGame()
+    {
+        currentQuestionIndex = 0;
+        correctAnswers = 0;
+        currentAnswer = "";
+        isGameOver = false;
+        isGameStarted = false;
+        questions = questionManager.GenerateQuestions();
+
+        if (questionUIController != null)
+        {
+            questionUIController.UpdateQuestion(questions[currentQuestionIndex], questionManager.CurrentStage, currentQuestionIndex, questionManager.MaxQuestions);
+            questionUIController.UpdateScore(correctAnswers, questionManager.MaxQuestions);
+        }
+
+        StartCoroutine(StartCountdown());
+    }
+   
+    // End Game Process
 }

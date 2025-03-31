@@ -1,18 +1,20 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using System;
 
 public class QuestionUIController : MonoBehaviour
 {
     public TextMeshProUGUI questionText;
     public TextMeshProUGUI stageText;
     public TextMeshProUGUI questionIndexText;
-    public TextMeshProUGUI answerText; // —p‰—èû¦g—pÒ—A“ü“I“šˆÄ
-    public TextMeshProUGUI scoreText; // —p‰—èû¦–Ú‘O“š›”“I‘èÉ˜a‘S•”‘èÉ
-    public TextMeshProUGUI previousQuestionText; // —p‰—èû¦ãˆêŒÂ‘è–Ú˜a“šˆÄ
-    public Color correctColor = Color.green; // ³Šm“šˆÄ“IèøF
-    public Color incorrectColor = Color.red; // öŒë“šˆÄ“IèøF
-
+    public TextMeshProUGUI answerText; // ç”¨æ–¼é¡¯ç¤ºä½¿ç”¨è€…è¼¸å…¥çš„ç­”æ¡ˆ
+    public TextMeshProUGUI scoreText; // ç”¨æ–¼é¡¯ç¤ºç›®å‰ç­”å°çš„é¡Œæ•¸å’Œå…¨éƒ¨é¡Œæ•¸
+    public TextMeshProUGUI previousQuestionText; // ç”¨æ–¼é¡¯ç¤ºä¸Šä¸€å€‹é¡Œç›®å’Œç­”æ¡ˆ
+    public TextMeshProUGUI timeText; // ç”¨æ–¼é¡¯ç¤ºå‰©é¤˜æ™‚é–“
+    public Color correctColor = Color.green; // æ­£ç¢ºç­”æ¡ˆçš„é¡è‰²
+    public Color incorrectColor = Color.red; // éŒ¯èª¤ç­”æ¡ˆçš„é¡è‰²
+    
     private void Start()
     {
         if (questionText == null || stageText == null || questionIndexText == null || answerText == null || scoreText == null || previousQuestionText == null)
@@ -73,6 +75,14 @@ public class QuestionUIController : MonoBehaviour
         {
             previousQuestionText.text = $"{question.Number1} {question.Operation} {question.Number2} = {userAnswer} ({(isCorrect ? "Correct" : "Incorrect")})";
             previousQuestionText.color = isCorrect ? correctColor : incorrectColor;
+        }
+    }
+
+    public void UpdateTime(string time)
+    {
+        if (timeText != null)
+        {
+            timeText.text = time;
         }
     }
 }
