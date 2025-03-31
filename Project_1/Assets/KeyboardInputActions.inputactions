@@ -1,0 +1,56 @@
+{
+    "name": "KeyboardInputActions",
+    "maps": [
+        {
+            "name": "Number",
+            "id": "6afc9483-ebbf-4aa3-be39-158456d08610",
+            "actions": [
+                {
+                    "name": "Num7",
+                    "type": "Button",
+                    "id": "ccfa3c03-2443-4b1e-be51-a2a6d43150a5",
+                    "expectedControlType": "",
+                    "processors": "Normalize",
+                    "interactions": "Press",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "80455b17-b69c-41e7-9584-ba77bfaf6796",
+                    "path": "<Keyboard>/numpad7",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Num7",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": [
+        {
+            "name": "New Control Scheme",
+            "bindingGroup": "New Control Scheme",
+            "devices": [
+                {
+                    "devicePath": "<Keyboard>",
+                    "isOptional": false,
+                    "isOR": false
+                },
+                {
+                    "devicePath": "<Mouse>",
+                    "isOptional": false,
+                    "isOR": false
+                },
+                {
+                    "devicePath": "<Touchscreen>",
+                    "isOptional": false,
+                    "isOR": false
+                }
+            ]
+        }
+    ]
+}
