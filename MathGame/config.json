@@ -1,0 +1,60 @@
+{
+  "game": {
+    "defaultDifficulty": "normal",
+    "selectionTime": 1000,
+    "maxAttempts": 3,
+    "scorePerCorrect": 10
+  },
+  "difficulty": {
+    "easy": {
+      "minNum": 0,
+      "maxNum": 9,
+      "label": "容易 (0-9)"
+    },
+    "normal": {
+      "minNum": 0,
+      "maxNum": 19,
+      "label": "一般 (0-19)"
+    },
+    "hard": {
+      "minNum": 10,
+      "maxNum": 99,
+      "label": "困難 (10-99)"
+    }
+  },
+  "audio": {
+    "correctSound": {
+      "volume": 3.0,
+      "duration": 0.8,
+      "frequencies": [523.25, 659.25, 783.99],
+      "type": "sine"
+    },
+    "wrongSound": {
+      "volume": 2.4,
+      "duration": 0.6,
+      "frequencies": [300, 200],
+      "type": "sawtooth"
+    }
+  },
+  "handTracking": {
+    "maxNumHands": 2,
+    "modelComplexity": 1,
+    "minDetectionConfidence": 0.5,
+    "minTrackingConfidence": 0.5,
+    "boundaryThreshold": 0.15,
+    "selectionMargin": 20
+  },
+  "ui": {
+    "boundaryWarning": {
+      "blinkSpeed": 0.25,
+      "borderWidth": "15px",
+      "borderColor": "red"
+    },
+    "feedbackDuration": {
+      "correct": 1500,
+      "wrong": 1500,
+      "wrongFinal": 2500
+    },
+    "instructionHideDelay": 8000
+  }
+}

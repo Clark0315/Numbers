@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR數學動作遊戲</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #video-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        #camera {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scaleX(-1);
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            display: none;
+        }
+
+        #camera.active {
+            display: block;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scaleX(-1);
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            display: none;
+        }
+
+        #canvas.active {
+            display: block;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #question-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: clamp(15px, 3vw, 30px) clamp(30px, 5vw, 60px);
+            border-radius: clamp(15px, 2vw, 25px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            font-size: clamp(28px, 5vw, 48px);
+            font-weight: bold;
+            color: #333;
+            text-align: center;
+            min-width: clamp(200px, 40vw, 350px);
+            z-index: 10;
+        }
+
+        .answer-option {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.95);
+            padding: clamp(15px, 2.5vw, 25px) clamp(20px, 3vw, 35px);
+            border-radius: clamp(12px, 2vw, 20px);
+            font-size: clamp(24px, 4vw, 40px);
+            font-weight: bold;
+            color: white;
+            text-align: center;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s;
+            border: clamp(3px, 0.5vw, 6px) solid transparent;
+            min-width: clamp(80px, 15vw, 140px);
+            min-height: clamp(80px, 15vw, 140px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .answer-option:hover {
+            transform: scale(1.05);
+        }
+
+        .answer-option:active {
+            transform: scale(0.95);
+        }
+
+        .answer-option.selecting {
+            border-color: #ffd700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8), 0 6px 20px rgba(0, 0, 0, 0.4);
+            transform: scale(1.15);
+            z-index: 20;
+        }
+
+        .answer-option:nth-child(1) {
+            top: calc(clamp(10px, 5vh, 30px) + clamp(40px, 7.5vw, 70px));
+            left: calc(clamp(10px, 5vw, 30px) + clamp(40px, 7.5vw, 70px));
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+        }
+
+        .answer-option:nth-child(2) {
+            top: calc(clamp(10px, 5vh, 30px) + clamp(40px, 7.5vw, 70px));
+            right: calc(clamp(10px, 5vw, 30px) + clamp(40px, 7.5vw, 70px));
+            background: linear-gradient(135deg, rgba(240, 147, 251, 0.95) 0%, rgba(245, 87, 108, 0.95) 100%);
+        }
+
+        .answer-option:nth-child(3) {
+            bottom: calc(clamp(10px, 5vh, 30px) + clamp(40px, 7.5vw, 70px));
+            left: calc(clamp(10px, 5vw, 30px) + clamp(40px, 7.5vw, 70px));
+            background: linear-gradient(135deg, rgba(79, 172, 254, 0.95) 0%, rgba(0, 242, 254, 0.95) 100%);
+        }
+
+        .answer-option:nth-child(4) {
+            bottom: calc(clamp(10px, 5vh, 30px) + clamp(40px, 7.5vw, 70px));
+            right: calc(clamp(10px, 5vw, 30px) + clamp(40px, 7.5vw, 70px));
+            background: linear-gradient(135deg, rgba(67, 233, 123, 0.95) 0%, rgba(56, 249, 215, 0.95) 100%);
+        }
+
+        .gesture-hint {
+            position: absolute;
+            font-size: clamp(40px, 6vw, 60px);
+            opacity: 0.7;
+            animation: pulse 2s infinite;
+            pointer-events: none;
+        }
+
+        .gesture-hint:nth-child(1) {
+            top: clamp(90px, 15vh, 140px);
+            left: clamp(40px, 8vw, 80px);
+        }
+
+        .gesture-hint:nth-child(2) {
+            top: clamp(90px, 15vh, 140px);
+            right: clamp(40px, 8vw, 80px);
+        }
+
+        .gesture-hint:nth-child(3) {
+            bottom: clamp(90px, 15vh, 140px);
+            left: clamp(40px, 8vw, 80px);
+        }
+
+        .gesture-hint:nth-child(4) {
+            bottom: clamp(90px, 15vh, 140px);
+            right: clamp(40px, 8vw, 80px);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+
+        #feedback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: clamp(60px, 10vw, 100px);
+            font-weight: bold;
+            text-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            transition: all 0.5s;
+            z-index: 100;
+        }
+
+        #feedback.show {
+            transform: translate(-50%, -50%) scale(1);
+            opacity: 1;
+        }
+
+        #feedback.correct {
+            color: #00ff00;
+        }
+
+        #feedback.wrong {
+            color: #ff0000;
+        }
+
+        #history-btn {
+            position: absolute;
+            top: clamp(10px, 2vh, 20px);
+            right: clamp(10px, 2vw, 20px);
+            padding: clamp(10px, 1.5vh, 15px) clamp(15px, 2vw, 25px);
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-radius: clamp(8px, 1vw, 12px);
+            font-size: clamp(14px, 2vw, 18px);
+            font-weight: bold;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 50;
+        }
+
+        #history-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            pointer-events: auto;
+        }
+
+        #history-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: clamp(20px, 3vw, 30px);
+            border-radius: clamp(15px, 2vw, 25px);
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            width: clamp(300px, 80vw, 500px);
+        }
+
+        #history-content h2 {
+            margin-bottom: clamp(12px, 2vh, 20px);
+            color: #333;
+            font-size: clamp(20px, 3vw, 28px);
+        }
+
+        .history-item {
+            padding: clamp(10px, 1.5vh, 15px);
+            margin: clamp(6px, 1vh, 10px) 0;
+            background: #f5f5f5;
+            border-radius: clamp(8px, 1vw, 12px);
+            border-left: clamp(4px, 0.5vw, 6px) solid #667eea;
+            font-size: clamp(13px, 1.8vw, 16px);
+        }
+
+        .history-item.correct {
+            border-left-color: #43e97b;
+        }
+
+        .history-item.wrong {
+            border-left-color: #f5576c;
+        }
+
+        #close-history {
+            position: absolute;
+            top: clamp(8px, 1vh, 12px);
+            right: clamp(8px, 1vw, 12px);
+            padding: clamp(8px, 1vh, 12px) clamp(12px, 1.5vw, 18px);
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: clamp(6px, 0.8vw, 10px);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: clamp(14px, 1.8vw, 16px);
+        }
+
+        #score {
+            position: absolute;
+            top: clamp(10px, 2vh, 20px);
+            left: clamp(10px, 2vw, 20px);
+            background: rgba(255, 255, 255, 0.9);
+            padding: clamp(8px, 1.2vh, 12px) clamp(12px, 1.8vw, 20px);
+            border-radius: clamp(8px, 1vw, 12px);
+            font-size: clamp(14px, 2vw, 18px);
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 50;
+            line-height: 1.6;
+        }
+
+        #score div {
+            margin: 2px 0;
+        }
+
+        #instruction {
+            position: absolute;
+            bottom: clamp(15px, 3vh, 30px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: clamp(12px, 2vh, 20px) clamp(20px, 3vw, 35px);
+            border-radius: clamp(10px, 1.5vw, 18px);
+            font-size: clamp(14px, 2vw, 18px);
+            color: #333;
+            text-align: center;
+            max-width: 90%;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            z-index: 10;
+        }
+
+        #start-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        #start-screen h1 {
+            color: white;
+            font-size: clamp(32px, 6vw, 48px);
+            margin-bottom: clamp(15px, 3vh, 25px);
+            text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            padding: 0 20px;
+        }
+
+        #start-screen p {
+            color: white;
+            font-size: clamp(16px, 2.5vw, 20px);
+            margin-bottom: clamp(20px, 4vh, 35px);
+            text-align: center;
+            max-width: 80%;
+            line-height: 1.6;
+        }
+
+        #difficulty-selector {
+            display: flex;
+            gap: clamp(10px, 2vw, 20px);
+            margin-bottom: clamp(20px, 3vh, 30px);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .difficulty-btn {
+            padding: clamp(12px, 2vh, 18px) clamp(25px, 4vw, 40px);
+            font-size: clamp(16px, 2.5vw, 24px);
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            border: 3px solid white;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .difficulty-btn:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .difficulty-btn.selected {
+            background: white;
+            color: #667eea;
+            transform: scale(1.1);
+        }
+
+        #start-btn {
+            padding: clamp(15px, 2.5vh, 20px) clamp(40px, 6vw, 60px);
+            font-size: clamp(22px, 3.5vw, 32px);
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s;
+        }
+
+        #start-btn:active {
+            transform: scale(0.95);
+        }
+
+        #loading {
+            display: none;
+            color: white;
+            font-size: clamp(16px, 2.5vw, 22px);
+            margin-top: clamp(15px, 3vh, 25px);
+        }
+
+        #camera-warning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 30px;
+            border-radius: 15px;
+            font-size: clamp(14px, 2vw, 18px);
+            color: #ff6b6b;
+            text-align: center;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            z-index: 5;
+            display: none;
+        }
+
+        #boundary-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 15px solid red;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 200;
+            transition: opacity 0.3s;
+        }
+
+        #boundary-warning.show {
+            opacity: 1;
+            animation: blink 0.25s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 0.3; }
+        }
+
+        @media (max-width: 768px) {
+            .gesture-hint {
+                font-size: clamp(30px, 5vw, 45px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="start-screen">
+        <h1>🎯 AR數學動作遊戲 🎯</h1>
+        <p>
+            📷 有攝影機：用手觸摸按鈕<br>
+            🖱️ 無攝影機：直接點擊答案
+        </p>
+        <div id="difficulty-selector">
+            <button class="difficulty-btn" data-difficulty="easy">容易 (0-9)</button>
+            <button class="difficulty-btn selected" data-difficulty="normal">一般 (0-19)</button>
+            <button class="difficulty-btn" data-difficulty="hard">困難 (10-99)</button>
+        </div>
+        <button id="start-btn">開始遊戲</button>
+        <div id="loading">載入中...</div>
+    </div>
+
+    <div id="video-container" style="display: none;">
+        <video id="camera" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        
+        <div id="overlay">
+            <div id="score">
+                <div>得分: <span id="score-value">0</span></div>
+                <div>✓ <span id="correct-count">0</span> | ✗ <span id="wrong-count">0</span></div>
+                <div>總題數: <span id="total-count">0</span></div>
+            </div>
+            <button id="history-btn">📊 記錄</button>
+            
+            <div id="question-box"></div>
+            
+            <div class="gesture-hint">👆</div>
+            <div class="gesture-hint">👆</div>
+            <div class="gesture-hint">👆</div>
+            <div class="gesture-hint">👆</div>
+            
+            <div id="answer-options"></div>
+            
+            <div id="instruction">
+                👆 用手觸摸按鈕或直接點擊
+            </div>
+
+            <div id="camera-warning">
+                ⚠️ 攝影機無法使用，使用點擊模式
+            </div>
+
+            <div id="feedback"></div>
+        </div>
+
+        <div id="boundary-warning"></div>
+    </div>
+
+    <div id="history-modal">
+        <div id="history-content">
+            <button id="close-history">✕</button>
+            <h2>答題記錄</h2>
+            <div id="history-list"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestion = {};
+        let history = [];
+        let score = 0;
+        let correctCount = 0;
+        let wrongCount = 0;
+        let totalQuestions = 0;
+        let hands;
+        let camera;
+        let canvasCtx;
+        let selecting = null;
+        let selectStartTime = 0;
+        let answered = false;
+        let cameraAvailable = false;
+        let wrongAttempts = 0;
+        let difficulty = 'normal'; // 預設難度
+        const SELECTION_TIME = 1000;
+        const MAX_ATTEMPTS = 3;
+
+        // 音效系統
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playCorrectSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // 答對音效：愉快的上升音階
+            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            oscillator.frequency.setValueAtTime(659.25, audioContext.currentTime + 0.2); // E5
+            oscillator.frequency.setValueAtTime(783.99, audioContext.currentTime + 0.4); // G5
+
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(3.0, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.8);
+        }
+
+        function playWrongSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // 答錯音效：低沉的下降音
+            oscillator.frequency.setValueAtTime(300, audioContext.currentTime); // 較低的音
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.3); // 更低
+
+            oscillator.type = 'sawtooth';
+            gainNode.gain.setValueAtTime(2.4, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.6);
+        }
+
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('canvas');
+        const questionBox = document.getElementById('question-box');
+        const answerOptionsContainer = document.getElementById('answer-options');
+        const feedback = document.getElementById('feedback');
+        const historyModal = document.getElementById('history-modal');
+        const historyList = document.getElementById('history-list');
+        const scoreValue = document.getElementById('score-value');
+        const correctCountEl = document.getElementById('correct-count');
+        const wrongCountEl = document.getElementById('wrong-count');
+        const totalCountEl = document.getElementById('total-count');
+        const startScreen = document.getElementById('start-screen');
+        const startBtn = document.getElementById('start-btn');
+        const loading = document.getElementById('loading');
+        const instruction = document.getElementById('instruction');
+        const videoContainer = document.getElementById('video-container');
+        const cameraWarning = document.getElementById('camera-warning');
+        const boundaryWarning = document.getElementById('boundary-warning');
+
+        // 難度選擇
+        document.querySelectorAll('.difficulty-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                difficulty = btn.dataset.difficulty;
+            });
+        });
+
+        startBtn.addEventListener('click', async () => {
+            console.log('開始按鈕被點擊');
+            startBtn.style.display = 'none';
+            loading.style.display = 'block';
+            await initializeGame();
+        });
+
+        async function initializeGame() {
+            console.log('開始初始化遊戲...');
+            
+            // 嘗試啟動攝影機
+            const cameraSuccess = await startCamera();
+            
+            if (cameraSuccess) {
+                // 攝影機成功，嘗試啟動手部追蹤
+                try {
+                    await initializeHandTracking();
+                    cameraAvailable = true;
+                    console.log('手部追蹤模式啟動');
+                } catch (error) {
+                    console.warn('手部追蹤初始化失敗，使用點擊模式', error);
+                    showCameraWarning('手部追蹤載入失敗，使用點擊模式');
+                }
+            }
+            
+            // 無論如何都啟動遊戲
+            startScreen.style.display = 'none';
+            videoContainer.style.display = 'block';
+            generateQuestion();
+        }
+
+        async function startCamera() {
+            console.log('嘗試啟動攝影機...');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                });
+                video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        console.log('攝影機已啟動');
+                        video.classList.add('active');
+                        resolve(true);
+                    };
+                });
+            } catch (err) {
+                console.warn('攝影機無法啟動:', err);
+                showCameraWarning('攝影機無法使用，使用點擊模式');
+                return false;
+            }
+        }
+
+        function showCameraWarning(message) {
+            cameraWarning.textContent = message;
+            cameraWarning.style.display = 'block';
+            setTimeout(() => {
+                cameraWarning.style.opacity = '0';
+                setTimeout(() => {
+                    cameraWarning.style.display = 'none';
+                    cameraWarning.style.opacity = '1';
+                }, 500);
+            }, 3000);
+        }
+
+        async function initializeHandTracking() {
+            console.log('初始化手部追蹤...');
+
+            hands = new Hands({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+                }
+            });
+
+            hands.setOptions({
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+
+            hands.onResults(onResults);
+
+            // 使用已經啟動的 video 元素進行手部偵測
+            const sendToHands = async () => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    await hands.send({ image: video });
+                }
+                requestAnimationFrame(sendToHands);
+            };
+            sendToHands();
+
+            canvas.classList.add('active');
+            console.log('手部追蹤已啟動');
+        }
+
+        function onResults(results) {
+            const canvasElement = canvas;
+            canvasCtx = canvasElement.getContext('2d');
+
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+
+            canvasCtx.save();
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                for (const landmarks of results.multiHandLandmarks) {
+                    drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {
+                        color: '#00FF00',
+                        lineWidth: 3
+                    });
+                    drawLandmarks(canvasCtx, landmarks, {
+                        color: '#FF0000',
+                        lineWidth: 2,
+                        radius: 4
+                    });
+                }
+
+                const indexFinger = results.multiHandLandmarks[0][8];
+                detectSelection(indexFinger);
+                checkBoundary(indexFinger);
+            } else {
+                resetSelection();
+                hideBoundaryWarning();
+            }
+
+            canvasCtx.restore();
+        }
+
+        function checkBoundary(fingerPos) {
+            const x = fingerPos.x;
+            const y = fingerPos.y;
+            const threshold = 0.15; // 邊界閾值（畫面的 15%）
+
+            // 檢查手指是否接近邊界
+            const nearBoundary = x < threshold || x > (1 - threshold) ||
+                                 y < threshold || y > (1 - threshold);
+
+            if (nearBoundary) {
+                showBoundaryWarning();
+            } else {
+                hideBoundaryWarning();
+            }
+        }
+
+        function showBoundaryWarning() {
+            boundaryWarning.classList.add('show');
+        }
+
+        function hideBoundaryWarning() {
+            boundaryWarning.classList.remove('show');
+        }
+
+        function detectSelection(fingerPos) {
+            if (answered) return;
+
+            const x = fingerPos.x;
+            const y = fingerPos.y;
+
+            // 將 MediaPipe 座標轉換為螢幕座標
+            const screenX = (1 - x) * window.innerWidth; // 因為畫面是鏡像的，需要翻轉 X
+            const screenY = y * window.innerHeight;
+
+            let newSelection = null;
+
+            // 檢測手指是否在按鈕區域內
+            const options = document.querySelectorAll('.answer-option');
+            options.forEach((option, index) => {
+                const rect = option.getBoundingClientRect();
+
+                // 擴大檢測範圍，讓觸摸更容易
+                const margin = 20;
+                if (screenX >= rect.left - margin &&
+                    screenX <= rect.right + margin &&
+                    screenY >= rect.top - margin &&
+                    screenY <= rect.bottom + margin) {
+                    newSelection = index;
+                }
+            });
+
+            if (newSelection !== selecting) {
+                selecting = newSelection;
+                selectStartTime = Date.now();
+                updateSelectionUI();
+            } else if (selecting !== null) {
+                const elapsed = Date.now() - selectStartTime;
+                if (elapsed >= SELECTION_TIME) {
+                    confirmSelection(selecting);
+                }
+            }
+        }
+
+        function resetSelection() {
+            selecting = null;
+            selectStartTime = 0;
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const options = document.querySelectorAll('.answer-option');
+            options.forEach((option, index) => {
+                if (index === selecting) {
+                    option.classList.add('selecting');
+                } else {
+                    option.classList.remove('selecting');
+                }
+            });
+        }
+
+        function confirmSelection(index) {
+            if (answered) return;
+            answered = true;
+
+            const selectedAnswer = currentQuestion.options[index];
+            checkAnswer(selectedAnswer);
+            resetSelection();
+        }
+
+        function generateQuestion() {
+            answered = false;
+            wrongAttempts = 0;
+
+            // 根據難度設定數字範圍
+            let minNum, maxNum;
+            if (difficulty === 'easy') {
+                minNum = 0;
+                maxNum = 9;
+            } else if (difficulty === 'normal') {
+                minNum = 0;
+                maxNum = 19;
+            } else { // hard
+                minNum = 10;
+                maxNum = 99;
+            }
+
+            const num1 = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+            const num2 = Math.floor(Math.random() * (maxNum - minNum + 1)) + minNum;
+            const operators = ['+', '-'];
+            const operator = operators[Math.floor(Math.random() * operators.length)];
+
+            let answer;
+            let displayNum1 = num1;
+            let displayNum2 = num2;
+
+            if (operator === '+') {
+                answer = num1 + num2;
+            } else {
+                if (num1 >= num2) {
+                    answer = num1 - num2;
+                } else {
+                    answer = num2 - num1;
+                    displayNum1 = num2;
+                    displayNum2 = num1;
+                }
+            }
+
+            const options = [answer];
+            while (options.length < 4) {
+                const offset = Math.floor(Math.random() * 20) - 10;
+                const wrongAnswer = answer + offset;
+                if (wrongAnswer > 0 && !options.includes(wrongAnswer)) {
+                    options.push(wrongAnswer);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            currentQuestion = {
+                num1: displayNum1,
+                num2: displayNum2,
+                operator,
+                answer,
+                options,
+                question: `${displayNum1} ${operator} ${displayNum2} = ?`,
+                timestamp: new Date().toLocaleString('zh-TW')
+            };
+
+            questionBox.textContent = currentQuestion.question;
+            
+            answerOptionsContainer.innerHTML = '';
+            options.forEach((option, index) => {
+                const div = document.createElement('div');
+                div.className = 'answer-option';
+                div.textContent = option;
+                
+                // 添加點擊事件
+                div.addEventListener('click', () => {
+                    if (!answered) {
+                        confirmSelection(index);
+                    }
+                });
+                
+                answerOptionsContainer.appendChild(div);
+            });
+
+            setTimeout(() => {
+                instruction.style.opacity = '0';
+                setTimeout(() => {
+                    instruction.style.display = 'none';
+                }, 500);
+            }, 8000);
+        }
+
+        function checkAnswer(selectedAnswer) {
+            const isCorrect = selectedAnswer === currentQuestion.answer;
+            
+            if (isCorrect) {
+                // 答對了
+                playCorrectSound();
+                correctCount++;
+                totalQuestions++;
+
+                history.push({
+                    ...currentQuestion,
+                    userAnswer: selectedAnswer,
+                    isCorrect: true,
+                    attempts: wrongAttempts + 1,
+                    timestamp: new Date().toLocaleString('zh-TW')
+                });
+
+                feedback.textContent = '✓ 答對了！';
+                feedback.className = 'show correct';
+
+                score += 10;
+                scoreValue.textContent = score;
+                correctCountEl.textContent = correctCount;
+                totalCountEl.textContent = totalQuestions;
+
+                setTimeout(() => {
+                    feedback.classList.remove('show');
+                    setTimeout(() => {
+                        generateQuestion();
+                    }, 300);
+                }, 1500);
+            } else {
+                // 答錯了
+                playWrongSound();
+                wrongAttempts++;
+
+                if (wrongAttempts >= MAX_ATTEMPTS) {
+                    // 答錯3次，顯示正確答案
+                    wrongCount++;
+                    totalQuestions++;
+
+                    history.push({
+                        ...currentQuestion,
+                        userAnswer: selectedAnswer,
+                        isCorrect: false,
+                        attempts: wrongAttempts,
+                        timestamp: new Date().toLocaleString('zh-TW')
+                    });
+
+                    feedback.innerHTML = `✗ 答錯了！<br><span style="font-size: 0.7em;">正確答案是 ${currentQuestion.answer}</span>`;
+                    feedback.className = 'show wrong';
+
+                    wrongCountEl.textContent = wrongCount;
+                    totalCountEl.textContent = totalQuestions;
+
+                    setTimeout(() => {
+                        feedback.classList.remove('show');
+                        setTimeout(() => {
+                            generateQuestion();
+                        }, 300);
+                    }, 2500);
+                } else {
+                    // 還有機會，顯示剩餘次數
+                    const remainingAttempts = MAX_ATTEMPTS - wrongAttempts;
+                    feedback.innerHTML = `✗ 答錯了！<br><span style="font-size: 0.6em;">還有 ${remainingAttempts} 次機會</span>`;
+                    feedback.className = 'show wrong';
+
+                    setTimeout(() => {
+                        feedback.classList.remove('show');
+                        // 不生成新題目，讓玩家繼續作答
+                        answered = false;
+                    }, 1500);
+                }
+            }
+        }
+
+        document.getElementById('history-btn').addEventListener('click', () => {
+            historyList.innerHTML = '';
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<p style="text-align: center; color: #999;">還沒有答題記錄</p>';
+            } else {
+                history.slice().reverse().forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = `history-item ${item.isCorrect ? 'correct' : 'wrong'}`;
+                    div.innerHTML = `
+                        <div style="font-weight: bold; margin-bottom: 5px;">
+                            題目 ${history.length - index}: ${item.question}
+                        </div>
+                        <div>你的答案: ${item.userAnswer}</div>
+                        <div>正確答案: ${item.answer}</div>
+                        <div style="color: #666; font-size: 0.9em; margin-top: 5px;">
+                            ${item.timestamp}
+                        </div>
+                    `;
+                    historyList.appendChild(div);
+                });
+            }
+            
+            historyModal.style.display = 'block';
+        });
+
+        document.getElementById('close-history').addEventListener('click', () => {
+            historyModal.style.display = 'none';
+        });
+
+        historyModal.addEventListener('click', (e) => {
+            if (e.target === historyModal) {
+                historyModal.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (canvasCtx) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+        });
+    </script>
+</body>
+</html>
