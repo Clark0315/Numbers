@@ -8,8 +8,9 @@
   "difficulty": {
     "easy": {
       "minNum": 0,
-      "maxNum": 9,
-      "label": "容易 (0-9)"
+      "maxNum": 10,
+      "label": "容易 (0-10)",
+      "make10Probability": 0.7
     },
     "normal": {
       "minNum": 0,
